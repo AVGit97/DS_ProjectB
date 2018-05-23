@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">DS_ProjectB</string>
+    <string name="title_activity_maps">DS ProjectB</string>
+    <string name="button_text">Connect</string>
+</resources>
