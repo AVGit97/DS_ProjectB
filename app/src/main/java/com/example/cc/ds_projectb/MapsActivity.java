@@ -62,6 +62,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             /*if (host unreachable)*/ result = "Couldn't connect to " + ip;
             /*else*/ result = "Successfully connected to " + ip;
 //            TEST COMMENT
+//            TEST COMMENT 2
             sleep(5000);
             return result;
         }
