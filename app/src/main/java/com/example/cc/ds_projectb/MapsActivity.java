@@ -26,7 +26,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
     private GoogleMap mMap;
     private TextView finalResult;
-    private EditText ipAddress;
+    private EditText ipAddress, userID;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -38,35 +38,54 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         mapFragment.getMapAsync(this);
 
         finalResult = findViewById(R.id.textView);
-        ipAddress = findViewById(R.id.editText);
 
-        Button btn = findViewById(R.id.button1);
+        ipAddress = findViewById(R.id.editText_ip);
+        userID = findViewById(R.id.editText_user_id);
+
+        Button btn = findViewById(R.id.button_connect);
         btn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                String ip = ipAddress.getText().toString();
-                AsyncTaskRunner runner = new AsyncTaskRunner();
-                runner.execute(ip);
+                boolean execute_runner = true;
+                if (userID.getText().toString().equals("")) {
+                    Toast.makeText(getApplicationContext(), R.string.editText_userID_empty, Toast.LENGTH_SHORT).show();
+                    execute_runner = false;
+                }
+
+                if (ipAddress.getText().toString().equals("")) {
+                    Toast.makeText(getApplicationContext(), R.string.editText_ip_empty, Toast.LENGTH_SHORT).show();
+                    execute_runner = false;
+                }
+
+                if (execute_runner) {
+                    AsyncTaskRunner runner = new AsyncTaskRunner();
+                    runner.execute();
+                }
             }
         });
     }
 
+    // AsyncTask<doInBackground parameter type, onProgressUpdate parameter type, onPostExecute parameter type>
     private class AsyncTaskRunner extends AsyncTask<String, String, String> {
+
         private String ip, result;
+        private int id;
         ProgressDialog progressDialog;
 
         @Override
         protected String doInBackground(String... params) {
             publishProgress("Waiting for host..."); // Calls onProgressUpdate()
             // TODO : Sockets here
-            /*if (host unreachable)*/ result = "Couldn't connect to " + ip;
-            /*else*/ result = "Successfully connected to " + ip;
-//            TEST COMMENT
-//            TEST COMMENT 2
             sleep(5000);
+            /*if (host unreachable)*/ result = "Couldn't connect to " + ip;
+            /*else*/ result = "Successfully connected to " + ip + " as user " + id;
             return result;
         }
 
+        @Override
+        protected void onProgressUpdate(String... text) {
+            progressDialog.setMessage(text[0]);
+        }
 
         @Override
         protected void onPostExecute(String result) {
@@ -79,15 +98,10 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         @Override
         protected void onPreExecute() {
             ip = ipAddress.getText().toString();
+            id = Integer.parseInt(userID.getText().toString());
             progressDialog = ProgressDialog.show(MapsActivity.this,
                     "ProgressDialog",
                     "Waiting for " + ip + " to respond...");
-        }
-
-
-        @Override
-        protected void onProgressUpdate(String... text) {
-            progressDialog.setMessage(text[0]);
         }
 
         private void sleep(int millis) {
@@ -97,6 +111,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 e.printStackTrace();
             }
         }
+
     }
 
     /**

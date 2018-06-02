@@ -2,4 +2,7 @@
     <string name="app_name">DS_ProjectB</string>
     <string name="title_activity_maps">DS ProjectB</string>
     <string name="button_text">Connect</string>
+    <string name="ip_address_hint">IP Address</string>
+    <string name="editText_ip_empty">IP Address can\'t be empty.</string>
+    <string name="editText_userID_empty">User ID can\'t be empty.</string>
 </resources>
