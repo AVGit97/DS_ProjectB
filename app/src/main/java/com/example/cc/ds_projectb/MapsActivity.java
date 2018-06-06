@@ -2,7 +2,11 @@ package com.example.cc.ds_projectb;
 
 import android.Manifest;
 import android.app.ProgressDialog;
+import android.content.Context;
 import android.content.pm.PackageManager;
+import android.location.Location;
+import android.location.LocationListener;
+import android.location.LocationManager;
 import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
@@ -40,6 +44,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private ObjectInputStream in = null;
     private ObjectOutputStream out = null;
 
+    private double latitude, longitude;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -53,6 +59,22 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
         ipAddress = findViewById(R.id.editText_ip);
         userID = findViewById(R.id.editText_user_id);
+
+//        Get current user location
+        LocationManager locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
+        if(ActivityCompat.checkSelfPermission(this,Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED &&
+                ActivityCompat.checkSelfPermission(this,Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED){
+            return;
+        }
+        assert locationManager != null;
+        Location location = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
+
+        locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 2000, 10, locationListener);
+
+        latitude = location.getLatitude();
+        longitude = location.getLongitude();
+
+        Log.d("LAT_LON", "LAT: " + latitude + " LON: " + longitude);
 
         Button btn = findViewById(R.id.button_connect);
         btn.setOnClickListener(new View.OnClickListener() {
@@ -152,7 +174,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         @Override
         protected String doInBackground(String... params) {
 
-            String result = null;
+            String result;
 
             int cores = Runtime.getRuntime().availableProcessors();
             long memory = Runtime.getRuntime().freeMemory();
@@ -161,15 +183,15 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             Log.d("cores and memory", s);
 
             try {
+                publishProgress("Sending number of cores...");
                 out.writeInt(cores);
                 out.flush();
-                Log.d("CORES_SENT", "Sent cores");
-                publishProgress("Number of cores sent");
+                Log.d("CORES_SENT", "Number of cores successfully sent.");
 
+                publishProgress("Sending available memory...");
                 out.writeLong(memory);
                 out.flush();
-                Log.d("MEMORY_SENT", "Sent cores");
-                publishProgress("Available memory sent");
+                Log.d("MEMORY_SENT", "Available memory successfully sent.");
 
                 result = "Successfully sent system info to host.";
 
@@ -234,6 +256,29 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         mMap.setTrafficEnabled(true);
 
     }
+
+    private final LocationListener locationListener = new LocationListener() {
+        @Override
+        public void onLocationChanged(Location location) {
+            latitude = location.getLatitude();
+            longitude = location.getLongitude();
+        }
+
+        @Override
+        public void onStatusChanged(String provider, int status, Bundle extras) {
+
+        }
+
+        @Override
+        public void onProviderEnabled(String provider) {
+
+        }
+
+        @Override
+        public void onProviderDisabled(String provider) {
+
+        }
+    };
 
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
