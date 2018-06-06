@@ -43,7 +43,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_alignParentStart="true"
-        android:layout_below="@+id/button_connect" />
+        android:layout_below="@+id/editText_ip" />
 
     <EditText
         android:id="@+id/editText_user_id"
@@ -52,7 +52,7 @@
         android:layout_alignParentTop="true"
         android:layout_toStartOf="@+id/editText_ip"
         android:ems="10"
-        android:hint="user ID"
+        android:hint="@string/user_id"
         android:inputType="number" />
 
 </RelativeLayout>

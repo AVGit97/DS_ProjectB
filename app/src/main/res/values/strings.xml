@@ -5,4 +5,5 @@
     <string name="ip_address_hint">IP Address</string>
     <string name="editText_ip_empty">IP Address can\'t be empty.</string>
     <string name="editText_userID_empty">User ID can\'t be empty.</string>
+    <string name="user_id">user ID</string>
 </resources>

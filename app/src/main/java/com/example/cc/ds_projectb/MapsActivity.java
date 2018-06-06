@@ -29,7 +29,6 @@ import java.io.ObjectOutputStream;
 import java.net.ConnectException;
 import java.net.Socket;
 import java.net.UnknownHostException;
-import java.util.concurrent.ExecutionException;
 
 public class MapsActivity extends FragmentActivity implements OnMapReadyCallback, ActivityCompat.OnRequestPermissionsResultCallback {
 
@@ -40,8 +39,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private Socket requestSocket = null;
     private ObjectInputStream in = null;
     private ObjectOutputStream out = null;
-
-    private boolean connected = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -61,73 +58,49 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         btn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                boolean execute_runner = true;
+                boolean execute_socketConnect = true;
                 if (userID.getText().toString().equals("")) {
                     Toast.makeText(getApplicationContext(), R.string.editText_userID_empty, Toast.LENGTH_SHORT).show();
-                    execute_runner = false;
+                    execute_socketConnect = false;
                 }
 
                 if (ipAddress.getText().toString().equals("")) {
                     Toast.makeText(getApplicationContext(), R.string.editText_ip_empty, Toast.LENGTH_SHORT).show();
-                    execute_runner = false;
+                    execute_socketConnect = false;
                 }
 
-                if (execute_runner) {
-                    AsyncTaskRunner runner = new AsyncTaskRunner();
-                    try {
-                        String result = runner.execute().get();
-                        Log.d("ASYNC_TASK_RESULT", result);
-                    } catch (InterruptedException | ExecutionException e) {
-                        e.printStackTrace();
-                    }
-
-                    String s = "connected: " + connected;
-                    Log.d("FINISHED_ASYNC_TASK", s);
-
-                    if (connected) {
-                        int cores = Runtime.getRuntime().availableProcessors();
-                        long memory = Runtime.getRuntime().freeMemory();
-
-                        s = "cores: " + cores + " memory: " + memory;
-                        Log.d("cores and memory", s);
-
-                        try {
-                            out.writeInt(cores);
-                            out.flush();
-                            Log.d("CORES", "Sent cores");
-
-                            out.writeLong(memory);
-                            out.flush();
-                        } catch (IOException e) {
-                            e.printStackTrace();
-                        }
-
-                    }
+                if (execute_socketConnect) {
+                    AsyncTaskSocketConnect socketConnect = new AsyncTaskSocketConnect();
+                    socketConnect.execute();
                 }
             }
         });
     }
 
-    // AsyncTask<doInBackground parameter type, onProgressUpdate parameter type, onPostExecute parameter type>
-    private class AsyncTaskRunner extends AsyncTask<String, String, String> {
+//    AsyncTask<doInBackground parameter type, onProgressUpdate parameter type, onPostExecute parameter type>
+//    Connect to host via Socket using the ip given
+    private class AsyncTaskSocketConnect extends AsyncTask<String, String, String> {
 
-        private String ip, result;
+        private String ip;
         private int id;
-        ProgressDialog progressDialog;
+        private ProgressDialog progressDialog;
+
+        private boolean connected = false;
 
         @Override
         protected String doInBackground(String... params) {
+            String result = null;
+
             publishProgress("Waiting for host..."); // Calls onProgressUpdate()
-            // TODO : Sockets here
             try {
                 requestSocket = new Socket(ip, 4321);
+
                 out = new ObjectOutputStream(requestSocket.getOutputStream());
                 in = new ObjectInputStream(requestSocket.getInputStream());
 
-                result = "Successfully connected to " + ip + " as user " + id;
+                result = "Successfully connected to " + ip + " as user " + id + '.';
                 connected = true;
-
-            } catch (UnknownHostException uknownHost) {
+            } catch (UnknownHostException unknownHost) {
                 result = "Couldn't connect to " + ip;
             } catch (ConnectException connectionException) {
                 result = "Connection timed out.";
@@ -148,6 +121,13 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             // execution of result of Long time consuming operation
             progressDialog.dismiss();
             finalResult.setText(result);
+            String s = "connected: " + connected;
+            Log.d("FINISHED_ASYNC_TASK", s);
+
+            if (connected) {
+                AsyncTaskSocketSendInfo sendInfo = new AsyncTaskSocketSendInfo();
+                sendInfo.execute();
+            }
         }
 
 
@@ -155,17 +135,73 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         protected void onPreExecute() {
             ip = ipAddress.getText().toString();
             id = Integer.parseInt(userID.getText().toString());
-            progressDialog = ProgressDialog.show(MapsActivity.this,
-                    "ProgressDialog",
-                    "Waiting for " + ip + " to respond...");
+            progressDialog = ProgressDialog.show(
+                    MapsActivity.this,
+                    "ProgressDialogSocketConnect",
+                    "Waiting for " + ip + " to respond..."
+            );
         }
 
-        private void sleep(int millis) {
+    }
+
+//    Send some information via Socket
+    private class AsyncTaskSocketSendInfo extends AsyncTask<String, String, String> {
+
+        private ProgressDialog progressDialog;
+
+        @Override
+        protected String doInBackground(String... params) {
+
+            String result = null;
+
+            int cores = Runtime.getRuntime().availableProcessors();
+            long memory = Runtime.getRuntime().freeMemory();
+
+            String s = "cores: " + cores + " memory: " + memory;
+            Log.d("cores and memory", s);
+
             try {
-                Thread.sleep(millis);
-            } catch (InterruptedException e) {
+                out.writeInt(cores);
+                out.flush();
+                Log.d("CORES_SENT", "Sent cores");
+                publishProgress("Number of cores sent");
+
+                out.writeLong(memory);
+                out.flush();
+                Log.d("MEMORY_SENT", "Sent cores");
+                publishProgress("Available memory sent");
+
+                result = "Successfully sent system info to host.";
+
+            } catch (IOException e) {
                 e.printStackTrace();
+                result = "IOException occurred while sending info to host.";
             }
+
+            return result;
+
+        }
+
+        @Override
+        protected void onProgressUpdate(String... text) {
+            progressDialog.setMessage(text[0]);
+        }
+
+        @Override
+        protected void onPostExecute(String result) {
+            // execution of result of Long time consuming operation
+            progressDialog.dismiss();
+            finalResult.setText(result);
+        }
+
+
+        @Override
+        protected void onPreExecute() {
+            progressDialog = ProgressDialog.show(
+                    MapsActivity.this,
+                    "ProgressDialogSendInfo",
+                    "Sending information to host..."
+            );
         }
 
     }
@@ -237,6 +273,14 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         } else {
             mMap.setMyLocationEnabled(true);
             mMap.getUiSettings().setMyLocationButtonEnabled(true);
+        }
+    }
+
+    public static void sleep(long millis) {
+        try {
+            Thread.sleep(millis);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
         }
     }
 
