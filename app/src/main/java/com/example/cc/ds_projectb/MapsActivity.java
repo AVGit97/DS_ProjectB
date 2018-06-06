@@ -9,6 +9,7 @@ import android.os.Bundle;
 import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.app.FragmentActivity;
+import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
@@ -22,11 +23,25 @@ import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.MarkerOptions;
 
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.net.ConnectException;
+import java.net.Socket;
+import java.net.UnknownHostException;
+import java.util.concurrent.ExecutionException;
+
 public class MapsActivity extends FragmentActivity implements OnMapReadyCallback, ActivityCompat.OnRequestPermissionsResultCallback {
 
     private GoogleMap mMap;
     private TextView finalResult;
     private EditText ipAddress, userID;
+
+    private Socket requestSocket = null;
+    private ObjectInputStream in = null;
+    private ObjectOutputStream out = null;
+
+    private boolean connected = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -59,7 +74,35 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
                 if (execute_runner) {
                     AsyncTaskRunner runner = new AsyncTaskRunner();
-                    runner.execute();
+                    try {
+                        String result = runner.execute().get();
+                        Log.d("ASYNC_TASK_RESULT", result);
+                    } catch (InterruptedException | ExecutionException e) {
+                        e.printStackTrace();
+                    }
+
+                    String s = "connected: " + connected;
+                    Log.d("FINISHED_ASYNC_TASK", s);
+
+                    if (connected) {
+                        int cores = Runtime.getRuntime().availableProcessors();
+                        long memory = Runtime.getRuntime().freeMemory();
+
+                        s = "cores: " + cores + " memory: " + memory;
+                        Log.d("cores and memory", s);
+
+                        try {
+                            out.writeInt(cores);
+                            out.flush();
+                            Log.d("CORES", "Sent cores");
+
+                            out.writeLong(memory);
+                            out.flush();
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
+
+                    }
                 }
             }
         });
@@ -76,9 +119,22 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         protected String doInBackground(String... params) {
             publishProgress("Waiting for host..."); // Calls onProgressUpdate()
             // TODO : Sockets here
-            sleep(5000);
-            /*if (host unreachable)*/ result = "Couldn't connect to " + ip;
-            /*else*/ result = "Successfully connected to " + ip + " as user " + id;
+            try {
+                requestSocket = new Socket(ip, 4321);
+                out = new ObjectOutputStream(requestSocket.getOutputStream());
+                in = new ObjectInputStream(requestSocket.getInputStream());
+
+                result = "Successfully connected to " + ip + " as user " + id;
+                connected = true;
+
+            } catch (UnknownHostException uknownHost) {
+                result = "Couldn't connect to " + ip;
+            } catch (ConnectException connectionException) {
+                result = "Connection timed out.";
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+
             return result;
         }
 
