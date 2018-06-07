@@ -33,6 +33,7 @@ import java.io.ObjectOutputStream;
 import java.net.ConnectException;
 import java.net.Socket;
 import java.net.UnknownHostException;
+import java.util.ArrayList;
 
 public class MapsActivity extends FragmentActivity implements OnMapReadyCallback, ActivityCompat.OnRequestPermissionsResultCallback {
 
@@ -143,12 +144,11 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             // execution of result of Long time consuming operation
             progressDialog.dismiss();
             finalResult.setText(result);
-            String s = "connected: " + connected;
-            Log.d("FINISHED_ASYNC_TASK", s);
+            Log.d("FINISHED_ASYNC_TASK", "connected: " + connected);
 
             if (connected) {
-                AsyncTaskSocketSendInfo sendInfo = new AsyncTaskSocketSendInfo();
-                sendInfo.execute();
+                AsyncTaskSocketSendReceiveInfo sendInfo = new AsyncTaskSocketSendReceiveInfo();
+                sendInfo.execute(String.valueOf(id));
             }
         }
 
@@ -167,7 +167,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     }
 
 //    Send some information via Socket
-    private class AsyncTaskSocketSendInfo extends AsyncTask<String, String, String> {
+    private class AsyncTaskSocketSendReceiveInfo extends AsyncTask<String, String, String> {
 
         private ProgressDialog progressDialog;
 
@@ -175,29 +175,59 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         protected String doInBackground(String... params) {
 
             String result;
-
-            int cores = Runtime.getRuntime().availableProcessors();
-            long memory = Runtime.getRuntime().freeMemory();
-
-            String s = "cores: " + cores + " memory: " + memory;
-            Log.d("cores and memory", s);
+            int id = Integer.parseInt(params[0]);
 
             try {
-                publishProgress("Sending number of cores...");
-                out.writeInt(cores);
+                publishProgress("Sending ID...");
+                out.writeInt(id);
                 out.flush();
-                Log.d("CORES_SENT", "Number of cores successfully sent.");
+                Log.d("ID_SENT", "ID successfully sent.");
 
-                publishProgress("Sending available memory...");
-                out.writeLong(memory);
+                publishProgress("Sending latitude...");
+                out.writeDouble(latitude);
                 out.flush();
-                Log.d("MEMORY_SENT", "Available memory successfully sent.");
+                Log.d("LATITUDE_SENT", "Latitude successfully sent.");
 
-                result = "Successfully sent system info to host.";
+                publishProgress("Sending longitude...");
+                out.writeDouble(longitude);
+                out.flush();
+                Log.d("LONGITUDE_SENT", "longitude successfully sent.");
+
+                publishProgress("Successfully sent client info to host.");
+                sleep(3000);
+
+                // wait for response
+                publishProgress("Receiving k...");
+                int k = in.readInt();
+                Log.d("K_RECEIVED", "k successfully received. (k = " + k + ')');
+
+                publishProgress("Receiving range...");
+                double range = in.readDouble();
+                Log.d("RANGE_RECEIVED", "range successfully received. (range = " + range + ')');
+
+                publishProgress("Receiving POI list...");
+                ArrayList<Poi> listFromServer = (ArrayList<Poi>) in.readObject();
+                Log.d("POI_LIST_RECEIVED", "POI list successfully received.");
+
+                ArrayList<Poi> bestLocalPois;
+                if (listFromServer != null) {
+                    bestLocalPois = new ArrayList<>(listFromServer);
+                    result = "Here are the best " + k + " local pois in a " + range + "km range:";
+                    for (Poi p:
+                            bestLocalPois) {
+                        Log.d("POI_INFO", "Poi " + p.getId() + ": at " + p.getLatitude() + ", " + p.getLongitude());
+                    }
+                } else {
+                    Log.d("POI_LIST_EMPTY", "listFromServer is null.");
+                    result = "There is nothing interesting here for you!";
+                }
 
             } catch (IOException e) {
                 e.printStackTrace();
                 result = "IOException occurred while sending info to host.";
+            } catch (ClassNotFoundException e) {
+                e.printStackTrace();
+                result = "ClassNotFoundException occurred while receiving info from host.";
             }
 
             return result;
