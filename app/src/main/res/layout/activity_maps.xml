@@ -27,17 +27,6 @@
         android:text="@string/button_text"
         android:textAllCaps="false" />
 
-    <EditText
-        android:id="@+id/editText_ip"
-        android:layout_width="168dp"
-        android:layout_height="wrap_content"
-        android:layout_alignParentTop="true"
-        android:layout_toStartOf="@+id/button_connect"
-        android:ems="10"
-        android:hint="@string/ip_address_hint"
-        android:inputType="phone"
-        android:singleLine="false" />
-
     <TextView
         android:id="@+id/textView"
         android:layout_width="match_parent"
@@ -54,5 +43,16 @@
         android:ems="10"
         android:hint="@string/user_id"
         android:inputType="number" />
+
+    <EditText
+        android:id="@+id/editText_ip"
+        android:layout_width="168dp"
+        android:layout_height="wrap_content"
+        android:layout_alignParentTop="true"
+        android:layout_toStartOf="@+id/button_connect"
+        android:ems="10"
+        android:hint="@string/ip_address_hint"
+        android:inputType="phone"
+        android:singleLine="false" />
 
 </RelativeLayout>

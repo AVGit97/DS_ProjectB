@@ -20,11 +20,14 @@ import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.google.android.gms.maps.CameraUpdate;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.LatLng;
+import com.google.android.gms.maps.model.LatLngBounds;
+import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 
 import java.io.IOException;
@@ -34,6 +37,8 @@ import java.net.ConnectException;
 import java.net.Socket;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
+
+import test.ds_project.poi.Poi;
 
 public class MapsActivity extends FragmentActivity implements OnMapReadyCallback, ActivityCompat.OnRequestPermissionsResultCallback {
 
@@ -63,17 +68,25 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
 //        Get current user location
         LocationManager locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
-        if(ActivityCompat.checkSelfPermission(this,Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED &&
-                ActivityCompat.checkSelfPermission(this,Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED){
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            // TODO: Consider calling
+            //    ActivityCompat#requestPermissions
+            // here to request the missing permissions, and then overriding
+            //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
+            //                                          int[] grantResults)
+            // to handle the case where the user grants the permission. See the documentation
+            // for ActivityCompat#requestPermissions for more details.
             return;
         }
         assert locationManager != null;
-        Location location = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
-
         locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 2000, 10, locationListener);
 
-        latitude = location.getLatitude();
-        longitude = location.getLongitude();
+        Location location = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
+
+        if (location != null) {
+            latitude = location.getLatitude();
+            longitude = location.getLongitude();
+        }
 
         Log.d("LAT_LON", "LAT: " + latitude + " LON: " + longitude);
 
@@ -171,6 +184,12 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
         private ProgressDialog progressDialog;
 
+        private ArrayList<Marker> markers = new ArrayList<>();
+        private ArrayList<Poi> listFromServer;
+
+        private int k;
+        private double range;
+
         @Override
         protected String doInBackground(String... params) {
 
@@ -194,31 +213,23 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 Log.d("LONGITUDE_SENT", "longitude successfully sent.");
 
                 publishProgress("Successfully sent client info to host.");
-                sleep(3000);
 
                 // wait for response
                 publishProgress("Receiving k...");
-                int k = in.readInt();
+                k = in.readInt();
                 Log.d("K_RECEIVED", "k successfully received. (k = " + k + ')');
 
                 publishProgress("Receiving range...");
-                double range = in.readDouble();
+                range = in.readDouble();
                 Log.d("RANGE_RECEIVED", "range successfully received. (range = " + range + ')');
 
                 publishProgress("Receiving POI list...");
-                ArrayList<Poi> listFromServer = (ArrayList<Poi>) in.readObject();
+                listFromServer = (ArrayList<Poi>) in.readObject();
                 Log.d("POI_LIST_RECEIVED", "POI list successfully received.");
 
-                ArrayList<Poi> bestLocalPois;
                 if (listFromServer != null) {
-                    bestLocalPois = new ArrayList<>(listFromServer);
                     result = "Here are the best " + k + " local pois in a " + range + "km range:";
-                    for (Poi p:
-                            bestLocalPois) {
-                        Log.d("POI_INFO", "Poi " + p.getId() + ": at " + p.getLatitude() + ", " + p.getLongitude());
-                    }
                 } else {
-                    Log.d("POI_LIST_EMPTY", "listFromServer is null.");
                     result = "There is nothing interesting here for you!";
                 }
 
@@ -244,6 +255,40 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             // execution of result of Long time consuming operation
             progressDialog.dismiss();
             finalResult.setText(result);
+
+            ArrayList<Poi> bestLocalPois;
+            if (listFromServer != null) {
+
+                bestLocalPois = new ArrayList<>(listFromServer);
+                MarkerOptions options = new MarkerOptions();
+                LatLng currentPoint;
+
+                for (Poi p:
+                        bestLocalPois) {
+                    Log.d("POI_INFO", "Poi " + p.getId() + ": at " + p.getLatitude() + ", " + p.getLongitude());
+
+                    currentPoint = new LatLng(p.getLatitude(), p.getLongitude());
+                    options.position(currentPoint);
+                    options.title(p.getName() + " (#" + p.getId() + ')');
+                    options.snippet("Category: " + p.getCategory());
+                    markers.add(mMap.addMarker(options));
+                }
+
+//                Move camera in order to show all markers
+                LatLngBounds.Builder builder = new LatLngBounds.Builder();
+                for (Marker marker : markers) {
+                    builder.include(marker.getPosition());
+                }
+                LatLngBounds bounds = builder.build();
+
+                int padding = 100; // offset from edges of the map in pixels
+                CameraUpdate cu = CameraUpdateFactory.newLatLngBounds(bounds, padding);
+
+                mMap.animateCamera(cu);
+
+            } else {
+                Log.d("POI_LIST_EMPTY", "listFromServer is null.");
+            }
         }
 
 
@@ -279,10 +324,10 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         mMap.addMarker(new MarkerOptions().position(sydney).title("Marker in Sydney"));
         mMap.moveCamera(CameraUpdateFactory.newLatLng(sydney));*/
 
-        LatLng athens = new LatLng(37.9908997, 23.7033199);
-        mMap.addMarker(new MarkerOptions().position(athens).title("Αθήνα!!!").snippet("Γεια! :) Είμαι η Αθήνα! :)"));
+        /*LatLng athens = new LatLng(37.9908997, 23.7033199);
+        mMap.addMarker(new MarkerOptions().position(athens).title("Αθήνα"));
         mMap.moveCamera(CameraUpdateFactory.newLatLng(athens));
-        mMap.animateCamera(CameraUpdateFactory.zoomTo(15), 1000, null);
+        mMap.animateCamera(CameraUpdateFactory.zoomTo(15), 1000, null);*/
         mMap.setTrafficEnabled(true);
 
     }
