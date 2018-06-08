@@ -34,7 +34,9 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.ConnectException;
+import java.net.NoRouteToHostException;
 import java.net.Socket;
+import java.net.SocketException;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
 
@@ -46,7 +48,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private TextView finalResult;
     private EditText ipAddress, userID;
 
-    private Socket requestSocket = null;
     private ObjectInputStream in = null;
     private ObjectOutputStream out = null;
 
@@ -103,6 +104,9 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 if (ipAddress.getText().toString().equals("")) {
                     Toast.makeText(getApplicationContext(), R.string.editText_ip_empty, Toast.LENGTH_SHORT).show();
                     execute_socketConnect = false;
+                } else if (!isValidIP(ipAddress.getText().toString())) {
+                    Toast.makeText(getApplicationContext(), "The IP address you entered is not valid.", Toast.LENGTH_SHORT).show();
+                    execute_socketConnect = false;
                 }
 
                 if (execute_socketConnect) {
@@ -129,7 +133,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
             publishProgress("Waiting for host..."); // Calls onProgressUpdate()
             try {
-                requestSocket = new Socket(ip, 4321);
+                Socket requestSocket = new Socket(ip, 4321);
 
                 out = new ObjectOutputStream(requestSocket.getOutputStream());
                 in = new ObjectInputStream(requestSocket.getInputStream());
@@ -140,6 +144,10 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 result = "Couldn't connect to " + ip;
             } catch (ConnectException connectionException) {
                 result = "Connection timed out.";
+            } catch (NoRouteToHostException routeException) {
+                result = "Couldn't find route to host.";
+            } catch (SocketException socketException) {
+                result = "Network is unreachable.";
             } catch (IOException e) {
                 e.printStackTrace();
             }
@@ -396,12 +404,33 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         }
     }
 
-    public static void sleep(long millis) {
+    private static boolean isValidIP (String ip) {
         try {
-            Thread.sleep(millis);
-        } catch (InterruptedException e) {
-            e.printStackTrace();
+            if ( ip == null || ip.isEmpty() ) {
+                return false;
+            }
+
+            String[] parts = ip.split( "\\." );
+            if ( parts.length != 4 ) {
+                return false;
+            }
+
+            for ( String s : parts ) {
+                int i = Integer.parseInt( s );
+                if ( (i < 0) || (i > 255) ) {
+                    return false;
+                }
+            }
+
+            if ( ip.endsWith(".") ) {
+                return false;
+            }
+
+            return true;
+        } catch (NumberFormatException nfe) {
+            return false;
         }
+
     }
 
 }
