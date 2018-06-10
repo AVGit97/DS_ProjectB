@@ -236,7 +236,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 Log.d("POI_LIST_RECEIVED", "POI list successfully received.");
 
                 if (listFromServer != null) {
-                    result = "Here are the best " + k + " local pois in a " + range + "km range:";
+                    result = "Here are the best " + listFromServer.size() + " local pois in a " + range + "km range:";
                 } else {
                     result = "There is nothing interesting here for you!";
                 }
@@ -404,31 +404,35 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         }
     }
 
-    private static boolean isValidIP (String ip) {
+    private static boolean isValidIP(String ip) {
         try {
-            if ( ip == null || ip.isEmpty() ) {
+
+            if (ip == null || ip.isEmpty()) {
                 return false;
             }
 
-            String[] parts = ip.split( "\\." );
-            if ( parts.length != 4 ) {
+            String[] parts = ip.split("\\.");
+            if (parts.length != 4) {
                 return false;
             }
 
-            for ( String s : parts ) {
-                int i = Integer.parseInt( s );
-                if ( (i < 0) || (i > 255) ) {
+            for (String s : parts) {
+                int i = Integer.parseInt(s);
+                if ((i < 0) || (i > 255)) {
                     return false;
                 }
             }
 
-            if ( ip.endsWith(".") ) {
+            if (ip.endsWith(".")) {
                 return false;
             }
 
             return true;
+
         } catch (NumberFormatException nfe) {
+
             return false;
+
         }
 
     }
